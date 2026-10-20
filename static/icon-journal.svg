@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" role="img" aria-label="Journal">
+  <!-- Small-size version of the journal mark: the ledger spine, and the P&L
+       calendar as four cells - winning days, a losing day, one still to come. -->
+  <rect x="2.8" y="4" width="3.2" height="16" rx="1.2" fill="#3fa7ff"/>
+  <g stroke="#3fa7ff" stroke-width="1.5">
+    <rect x="9.1" y="5.4" width="5.9" height="5.9" rx="1.3" fill="#19c37d"/>
+    <rect x="15.9" y="5.4" width="5.9" height="5.9" rx="1.3" fill="#ff5a5f"/>
+    <rect x="9.1" y="12.7" width="5.9" height="5.9" rx="1.3" fill="#19c37d"/>
+    <rect x="15.9" y="12.7" width="5.9" height="5.9" rx="1.3" fill="none"/>
+  </g>
+</svg>

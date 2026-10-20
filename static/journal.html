@@ -1,0 +1,1540 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Daybook — Journal</title>
+<link rel="icon" href="/icon-journal.svg" type="image/svg+xml">
+<meta name="theme-color" content="#0b0f14">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+[hidden] { display: none !important; }
+img { max-width: 100%; }
+/* Layout: a sticky command bar over one measured column — summary strip,
+   then the month grid or the log, with the entry form in a dialog. */
+:root {
+  --bg: #f7f7f5;
+  --surface: #ffffff;
+  --surface-2: #f0f0ed;
+  --line: #dcdcd6;
+  --line-strong: #c2c2b9;
+  --ink: #1d1f1c;
+  --ink-2: #55584f;
+  --ink-3: #85887e;
+  --accent: #3f52c4;
+  --accent-soft: #e6e9fa;
+  --up: #0f7a4d;
+  --up-soft: #d9efe3;
+  --down: #c03a2b;
+  --down-soft: #fadfdb;
+  --flat: #9a9d93;
+  --radius: 10px;
+  --shadow: 0 1px 2px rgba(29, 31, 28, .06), 0 8px 24px rgba(29, 31, 28, .05);
+  --sans: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14161a;
+    --surface: #1b1e23;
+    --surface-2: #22262c;
+    --line: #2d323a;
+    --line-strong: #3d434d;
+    --ink: #e8eaed;
+    --ink-2: #aab0b9;
+    --ink-3: #7b828c;
+    --accent: #8d9bf5;
+    --accent-soft: #272d4d;
+    --up: #3ed492;
+    --up-soft: #16352a;
+    --down: #ff7a6b;
+    --down-soft: #3a1f1d;
+    --flat: #6b7280;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .3);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #14161a;
+  --surface: #1b1e23;
+  --surface-2: #22262c;
+  --line: #2d323a;
+  --line-strong: #3d434d;
+  --ink: #e8eaed;
+  --ink-2: #aab0b9;
+  --ink-3: #7b828c;
+  --accent: #8d9bf5;
+  --accent-soft: #272d4d;
+  --up: #3ed492;
+  --up-soft: #16352a;
+  --down: #ff7a6b;
+  --down-soft: #3a1f1d;
+  --flat: #6b7280;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .3);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.45;
+  margin: 0;
+  -webkit-text-size-adjust: 100%;
+}
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.pos { color: var(--up); }
+.neg { color: var(--down); }
+.zero { color: var(--ink-3); }
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+button { font: inherit; color: inherit; cursor: pointer; }
+
+/* ------------------------------------------------------------- top bar -- */
+.bar {
+  position: sticky;
+  top: env(safe-area-inset-top, 0px);
+  z-index: 20;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+}
+.bar-in {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px 14px;
+  flex-wrap: wrap;
+}
+.wordmark { font-weight: 700; letter-spacing: -.01em; font-size: 17px; display: flex; align-items: center; gap: 8px; }
+.wordmark .tick { width: 10px; height: 18px; border-radius: 2px; background: var(--up); box-shadow: 6px 0 0 var(--down); margin-right: 6px; }
+.views { display: flex; gap: 2px; background: var(--surface-2); padding: 3px; border-radius: 8px; }
+.views button {
+  border: 0; background: transparent; color: var(--ink-2);
+  padding: 5px 13px; border-radius: 6px; font-weight: 600; font-size: 13.5px;
+}
+.views button[aria-selected="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+.bar-right { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+select, input, textarea {
+  font: inherit; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line-strong); border-radius: 8px; padding: 6px 9px;
+}
+select { padding-right: 26px; }
+input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible, [tabindex]:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 1px;
+}
+.btn {
+  border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink);
+  border-radius: 8px; padding: 6px 12px; font-weight: 600; font-size: 14px;
+}
+.btn:hover { border-color: var(--accent); }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn-primary:hover { filter: brightness(1.08); }
+.btn-ghost { border-color: transparent; background: transparent; color: var(--ink-2); }
+.btn-ghost:hover { background: var(--surface-2); color: var(--ink); }
+.btn-danger { color: var(--down); border-color: var(--down); }
+.btn.sm { padding: 3px 9px; font-size: 13px; }
+
+/* --------------------------------------------------------------- shell -- */
+.wrap { max-width: 1180px; margin: 0 auto; padding-inline: 16px; padding-block: 16px 64px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.muted { color: var(--ink-2); }
+.tiny { font-size: 12.5px; }
+.label { font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3); font-weight: 600; }
+
+/* summary strip */
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; margin-bottom: 16px; }
+.stat { background: var(--surface); padding: 11px 14px; min-width: 0; }
+.stat .v { font-family: var(--mono); font-size: 21px; font-weight: 600; letter-spacing: -.02em; margin-top: 1px; }
+.stat .v.big { font-size: 25px; }
+.stat .sub { font-size: 12px; color: var(--ink-3); }
+
+/* ------------------------------------------------------------ calendar -- */
+.cal-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+.cal-head h2 { font-size: 19px; font-weight: 700; letter-spacing: -.01em; min-width: 170px; }
+.nav { display: flex; gap: 4px; }
+.nav button { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--surface); }
+.cal-total { margin-left: auto; font-family: var(--mono); font-weight: 600; font-size: 17px; }
+
+.grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)) minmax(0, .82fr); gap: 4px; }
+.dow { font-size: 11px; font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: .06em; padding: 2px 4px; }
+.dow.wk { text-align: right; }
+.cell {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+  min-height: 74px; padding: 6px 7px; display: flex; flex-direction: column; gap: 2px;
+  text-align: left; width: 100%; font: inherit; color: inherit;
+}
+.cell.blank { background: transparent; border-color: transparent; }
+.cell .d { font-size: 11.5px; color: var(--ink-3); font-weight: 600; }
+.cell .p { font-family: var(--mono); font-weight: 600; font-size: 14px; letter-spacing: -.02em; margin-top: auto; }
+.cell .t { font-size: 11px; color: var(--ink-3); }
+.cell .split { display: flex; align-items: baseline; gap: 4px; font-family: var(--mono); font-size: 11.5px; font-weight: 600; }
+.cell .split em { font-style: normal; font-size: 9.5px; font-weight: 700; letter-spacing: .04em; color: var(--ink-3); border: 1px solid var(--line-strong); border-radius: 3px; padding: 0 2px; }
+.cell .open-dot { font-size: 10px; color: var(--accent); font-weight: 700; }
+.kind { font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; padding: 1px 6px; border-radius: 4px; border: 1px solid var(--line-strong); color: var(--ink-2); }
+.kind.swing { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.chip.open { border-color: var(--accent); color: var(--accent); }
+.cell.today { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.cell.sel { outline: 2px solid var(--accent); outline-offset: 1px; }
+.cell.win { background: var(--up-soft); border-color: color-mix(in srgb, var(--up) 35%, var(--line)); }
+.cell.loss { background: var(--down-soft); border-color: color-mix(in srgb, var(--down) 35%, var(--line)); }
+.cell.flat { background: var(--surface-2); }
+.cell.big { box-shadow: inset 0 0 0 2px color-mix(in srgb, currentColor 22%, transparent); }
+.wkcell { background: var(--surface-2); border: 1px dashed var(--line-strong); border-radius: 8px; padding: 6px 7px; display: flex; flex-direction: column; justify-content: space-between; }
+.wkcell .p { font-family: var(--mono); font-weight: 600; font-size: 13px; text-align: right; }
+
+/* day detail */
+.day-panel { margin-top: 14px; padding: 12px 14px; }
+.day-panel h3 { font-size: 15px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* --------------------------------------------------------------- table -- */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th {
+  text-align: right; font-size: 11px; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--ink-3); font-weight: 700; padding: 7px 10px; border-bottom: 1px solid var(--line); white-space: nowrap;
+}
+th.l, td.l { text-align: left; }
+td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; font-size: 14px; }
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr:hover td { background: var(--surface-2); }
+td.sym { font-weight: 700; letter-spacing: -.01em; }
+.side { font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 4px; text-transform: uppercase; letter-spacing: .04em; }
+.side.long { background: var(--up-soft); color: var(--up); }
+.side.short { background: var(--down-soft); color: var(--down); }
+.chip { display: inline-block; font-size: 11.5px; padding: 1px 7px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); color: var(--ink-2); }
+.chip.sample { border-style: dashed; }
+.grade { font-family: var(--mono); font-weight: 600; }
+.note { color: var(--ink-2); font-size: 13px; max-width: 300px; overflow: hidden; text-overflow: ellipsis; }
+.filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+.filters input[type="search"] { min-width: 120px; }
+
+/* --------------------------------------------------------------- chart -- */
+.chart-card { padding: 12px 14px 6px; margin-top: 16px; }
+.chart-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
+.chart-head h3 { font-size: 15px; }
+figure { margin: 0; }
+svg { display: block; width: 100%; height: auto; max-width: 100%; touch-action: pan-y; }
+.axis { fill: var(--ink-3); font-size: 11px; font-family: var(--mono); }
+.gridline { stroke: var(--line); stroke-width: 1; }
+.zeroline { stroke: var(--line-strong); stroke-width: 1; stroke-dasharray: 3 3; }
+.tip {
+  position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--line-strong);
+  border-radius: 8px; padding: 7px 10px; box-shadow: var(--shadow); font-size: 13px; z-index: 5; min-width: 128px;
+}
+.tip .t-d { font-weight: 700; margin-bottom: 2px; }
+.tip-row { display: flex; justify-content: space-between; gap: 14px; font-family: var(--mono); font-size: 12.5px; }
+
+/* --------------------------------------------------------------- stats -- */
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+.panel { padding: 13px 15px; }
+.panel h3 { font-size: 14px; margin-bottom: 10px; }
+.kv { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; border-bottom: 1px dotted var(--line); font-size: 14px; }
+.kv:last-child { border-bottom: 0; }
+table.vs th, table.vs td { padding: 5px 4px; font-size: 13px; }
+table.vs th:first-child, table.vs td:first-child { padding-left: 0; }
+.kv span:last-child { font-family: var(--mono); font-weight: 600; }
+.bars { display: grid; gap: 8px; }
+.barrow { display: grid; grid-template-columns: minmax(74px, 94px) 1fr minmax(66px, auto); gap: 10px; align-items: center; font-size: 13.5px; }
+.track { height: 9px; border-radius: 4px; background: var(--surface-2); overflow: hidden; display: flex; }
+.fill { height: 100%; border-radius: 4px; }
+.fill.pos { background: var(--up); }
+.fill.neg { background: var(--down); }
+.barrow .val { text-align: right; font-family: var(--mono); font-weight: 600; }
+
+/* --------------------------------------------------------------- forms -- */
+dialog {
+  border: 1px solid var(--line-strong); border-radius: 14px; background: var(--surface); color: var(--ink);
+  padding: 0; width: min(620px, calc(100vw - 24px)); box-shadow: var(--shadow);
+}
+dialog::backdrop { background: rgba(10, 12, 10, .45); backdrop-filter: blur(2px); }
+.dlg-h { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+.dlg-h h2 { font-size: 17px; }
+.dlg-b { padding: 16px 18px; max-height: min(70vh, 560px); overflow-y: auto; }
+.dlg-f { display: flex; gap: 8px; align-items: center; padding: 12px 18px; border-top: 1px solid var(--line); background: var(--surface-2); border-radius: 0 0 13px 13px; flex-wrap: wrap; }
+.dlg-f .spacer { margin-left: auto; }
+.fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); gap: 11px; }
+.field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.field.wide { grid-column: 1 / -1; }
+.field label { font-size: 11.5px; font-weight: 600; color: var(--ink-2); }
+.field input, .field select, .field textarea { width: 100%; }
+.field .hint { font-size: 11px; color: var(--ink-3); }
+textarea { resize: vertical; min-height: 60px; font-family: var(--sans); }
+.calc { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-top: 13px; padding: 10px 12px; border-radius: 8px; background: var(--surface-2); }
+.calc .v { font-family: var(--mono); font-size: 20px; font-weight: 600; }
+.seg { display: flex; border: 1px solid var(--line-strong); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; background: var(--surface); padding: 6px 14px; font-weight: 600; font-size: 14px; color: var(--ink-2); }
+.seg button + button { border-left: 1px solid var(--line-strong); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+
+/* ------------------------------------------------------------- states --- */
+.empty { padding: 34px 20px; text-align: center; }
+.empty h2 { font-size: 19px; margin-bottom: 6px; }
+.empty p { color: var(--ink-2); max-width: 46ch; margin: 0 auto 16px; }
+.empty .row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.banner { padding: 10px 14px; border-radius: var(--radius); background: var(--accent-soft); color: var(--ink); margin-bottom: 14px; font-size: 13.5px; border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent); }
+.banner.warn { background: var(--down-soft); border-color: color-mix(in srgb, var(--down) 30%, transparent); }
+.toast {
+  position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  background: var(--ink); color: var(--bg); padding: 9px 16px; border-radius: 999px; font-size: 13.5px; font-weight: 600;
+  box-shadow: var(--shadow); z-index: 60;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .toast { animation: rise .22s ease-out; }
+  @keyframes rise { from { opacity: 0; transform: translate(-50%, 8px); } }
+}
+
+/* The journal sits in a tab beside the scanner, which is always dark, so it
+   opens dark too; the toggle in the header remembers your choice. */
+@media (max-width: 720px) {
+  body { font-size: 14px; }
+  .grid { grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
+  .dow.wk, .wkcell { display: none; }
+  .cell { min-height: 58px; padding: 4px; }
+  .cell .p { font-size: 11.5px; }
+  .cell .t { display: none; }
+  .cell .split { font-size: 10px; gap: 3px; }
+  .cell .split em { font-size: 8.5px; }
+  .stat .v { font-size: 18px; }
+  .stat .v.big { font-size: 21px; }
+}
+</style>
+<script>
+  try { document.documentElement.dataset.theme = (localStorage.getItem("tl.theme") || "dark").replace(/"/g, ""); }
+  catch (e) { document.documentElement.dataset.theme = "dark"; }
+</script>
+</head>
+<body>
+
+<header class="bar">
+  <div class="bar-in">
+    <div class="wordmark"><img src="/icon-journal.svg" alt="" width="21" height="21" style="display:block">Journal</div>
+    <div class="views" role="tablist">
+      <button role="tab" data-view="calendar" aria-selected="true">Calendar</button>
+      <button role="tab" data-view="trades" aria-selected="false">Trades</button>
+      <button role="tab" data-view="stats" aria-selected="false">Stats</button>
+    </div>
+    <div class="bar-right">
+      <select id="kindFilter" aria-label="Show day trades, swing trades or both">
+        <option value="all">Day + swing</option>
+        <option value="day">Day trades</option>
+        <option value="swing">Swing trades</option>
+      </select>
+      <select id="scope" aria-label="Period for the summary numbers">
+        <option value="month">This month</option>
+        <option value="30">Last 30 days</option>
+        <option value="ytd">Year to date</option>
+        <option value="all">All time</option>
+      </select>
+      <button class="btn" id="themeBtn" title="Light or dark">◐</button>
+      <button class="btn" id="moreBtn" title="Export, import and settings">⋯</button>
+      <button class="btn btn-primary" id="addBtn">+ Trade</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div id="status"></div>
+  <section class="summary" id="summary" aria-label="Summary"></section>
+  <div id="view"></div>
+</main>
+
+<dialog id="tradeDlg" aria-labelledby="tradeDlgTitle">
+  <form id="tradeForm" method="dialog">
+    <div class="dlg-h">
+      <h2 id="tradeDlgTitle">Log a trade</h2>
+      <button type="button" class="btn btn-ghost" data-close aria-label="Close">✕</button>
+    </div>
+    <div class="dlg-b">
+      <div class="fields">
+        <div class="field wide">
+          <label>Type</label>
+          <div class="seg" id="kindSeg" role="group" aria-label="Trade type">
+            <button type="button" data-kind="day" aria-pressed="true">Day trade</button>
+            <button type="button" data-kind="swing" aria-pressed="false">Swing trade</button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="f-date" id="dateLabel">Date</label>
+          <input type="date" id="f-date" name="date" required>
+        </div>
+        <div class="field" id="exitDateField" hidden>
+          <label for="f-exit-date">Date closed</label>
+          <input type="date" id="f-exit-date" name="exitDate">
+          <span class="hint">The P&amp;L lands on this day</span>
+        </div>
+        <div class="field">
+          <label for="f-time-in">Time in <span class="hint">ET</span></label>
+          <input type="time" id="f-time-in" name="timeIn">
+        </div>
+        <div class="field">
+          <label for="f-time-out">Time out <span class="hint">ET</span></label>
+          <input type="time" id="f-time-out" name="timeOut">
+        </div>
+        <div class="field">
+          <label for="f-symbol">Symbol</label>
+          <input id="f-symbol" name="symbol" maxlength="10" required placeholder="NCPL" style="text-transform:uppercase">
+        </div>
+        <div class="field">
+          <label for="f-side">Side</label>
+          <select id="f-side" name="side">
+            <option value="long">Long</option>
+            <option value="short">Short</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="f-qty">Shares</label>
+          <input type="number" id="f-qty" name="qty" min="0" step="any" inputmode="decimal" placeholder="600">
+        </div>
+        <div class="field">
+          <label for="f-entry">Entry</label>
+          <input type="number" id="f-entry" name="entry" min="0" step="any" inputmode="decimal" placeholder="0.904">
+        </div>
+        <div class="field">
+          <label for="f-exit">Exit</label>
+          <input type="number" id="f-exit" name="exit" min="0" step="any" inputmode="decimal" placeholder="1.00">
+        </div>
+        <div class="field">
+          <label for="f-stop">Stop <span class="hint">(for R)</span></label>
+          <input type="number" id="f-stop" name="stop" min="0" step="any" inputmode="decimal" placeholder="0.86">
+        </div>
+        <div class="field">
+          <label for="f-fees">Fees</label>
+          <input type="number" id="f-fees" name="fees" min="0" step="any" inputmode="decimal" placeholder="0">
+        </div>
+        <div class="field">
+          <label for="f-setup">Setup</label>
+          <input id="f-setup" name="setup" list="setups" placeholder="Opening range">
+          <datalist id="setups"></datalist>
+        </div>
+        <div class="field">
+          <label for="f-grade">Execution grade</label>
+          <select id="f-grade" name="grade">
+            <option value="">—</option>
+            <option>A</option><option>B</option><option>C</option><option>D</option>
+          </select>
+        </div>
+        <div class="field wide">
+          <label for="f-notes">Notes — what you saw, what you'd repeat, what went wrong</label>
+          <textarea id="f-notes" name="notes" maxlength="2000" placeholder="5x RVOL, news gap, took the first pullback to VWAP. Sized too big for the spread."></textarea>
+        </div>
+      </div>
+      <div class="calc">
+        <span class="label">P&amp;L</span>
+        <span class="v" id="calcPnl">$0.00</span>
+        <span class="tiny muted" id="calcMeta"></span>
+        <label class="tiny muted" style="margin-left:auto;display:flex;gap:6px;align-items:center">
+          <input type="checkbox" id="manualPnl" style="width:auto"> Enter P&amp;L myself
+        </label>
+        <input type="number" id="f-pnl" name="pnlManual" step="any" inputmode="decimal" placeholder="57.59" hidden style="max-width:120px">
+      </div>
+    </div>
+    <div class="dlg-f">
+      <button type="button" class="btn btn-danger" id="deleteBtn" hidden>Delete</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn" data-close>Cancel</button>
+      <button type="submit" class="btn btn-primary" id="saveBtn">Save trade</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="moreDlg" aria-labelledby="moreTitle">
+  <div class="dlg-h">
+    <h2 id="moreTitle">Data</h2>
+    <button type="button" class="btn btn-ghost" data-close aria-label="Close">✕</button>
+  </div>
+  <div class="dlg-b">
+    <h3 style="font-size:14px">Export</h3>
+    <p class="tiny muted">Every trade as a CSV file you can open in Excel.</p>
+    <button class="btn" id="exportBtn">Export CSV</button>
+    <h3 style="font-size:14px;margin-top:18px">Import</h3>
+    <p class="tiny muted">Paste rows with this header: <code class="num">date,kind,exitdate,symbol,side,qty,entry,exit,stop,fees,pnl,setup,grade,notes</code>. Dates are YYYY-MM-DD, <code class="num">kind</code> is day or swing, and <code class="num">exitdate</code> is the day a swing was closed. If you leave entry and exit out, put the result in the pnl column.</p>
+    <textarea id="importText" placeholder="date,kind,exitdate,symbol,side,qty,entry,exit,stop,fees,pnl,setup,grade,notes&#10;2026-10-14,day,,NCPL,long,600,0.904,1.00,0.86,0,,Opening range,B,Took the break of the half dollar&#10;2026-10-02,swing,2026-10-13,SNDK,long,150,18.60,21.40,17.90,2,,Breakout retest,A,Held through the gap"></textarea>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap">
+      <button class="btn" id="importBtn">Import rows</button>
+      <span class="tiny muted" id="importMsg"></span>
+    </div>
+    <h3 style="font-size:14px;margin-top:18px">Sample trades</h3>
+    <p class="tiny muted">Five example trades so you can see the calendar working. They're marked "sample" and you can clear them any time.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn" id="sampleBtn">Add samples</button>
+      <button class="btn btn-danger" id="clearSampleBtn">Remove samples</button>
+    </div>
+  </div>
+  <div class="dlg-f"><span class="spacer"></span><button class="btn btn-primary" data-close>Done</button></div>
+</dialog>
+
+<script>
+"use strict";
+
+/* ------------------------------------------------------------- helpers -- */
+const $ = (s, r = document) => r.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const money = (n, sign = true) => (n < 0 ? "-" : sign && n > 0 ? "+" : "") + "$" + Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const money0 = (n) => (n < 0 ? "-" : n > 0 ? "+" : "") + "$" + Math.round(Math.abs(n)).toLocaleString("en-US");
+const compact = (n) => { const a = Math.abs(n); const s = n < 0 ? "-" : "+"; if (a >= 10000) return s + "$" + (a / 1000).toFixed(1) + "k"; if (a >= 1000) return s + "$" + Math.round(a).toLocaleString("en-US"); return s + "$" + (a < 100 ? a.toFixed(2) : Math.round(a)); };
+const sgn = (n) => n > 0 ? "pos" : n < 0 ? "neg" : "zero";
+const todayET = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+const ymd = (d) => [d.getUTCFullYear(), String(d.getUTCMonth() + 1).padStart(2, "0"), String(d.getUTCDate()).padStart(2, "0")].join("-");
+const parseDay = (s) => { const [y, m, d] = s.split("-").map(Number); return new Date(Date.UTC(y, m - 1, d)); };
+const addDays = (s, n) => { const d = parseDay(s); d.setUTCDate(d.getUTCDate() + n); return ymd(d); };
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const dowIndex = (s) => (parseDay(s).getUTCDay() + 6) % 7;     // 0 = Monday
+const prettyDay = (s) => { const d = parseDay(s); return DOW[dowIndex(s)] + " " + d.getUTCDate() + " " + MONTHS[d.getUTCMonth()].slice(0, 3) + " " + d.getUTCFullYear(); };
+const num = (v) => { const n = parseFloat(v); return Number.isFinite(n) ? n : null; };
+
+function toast(msg) {
+  const el = document.createElement("div");
+  el.className = "toast";
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2600);
+}
+
+/* --------------------------------------------------------------- state -- */
+const S = {
+  trades: [],
+  loaded: false,
+  offline: false,
+  view: "calendar",
+  month: todayET().slice(0, 7),
+  day: null,
+  scope: "month",
+  kind: "all",
+  formKind: "day",
+  filter: { q: "", setup: "", side: "", grade: "" },
+  sort: { key: "date", dir: -1 },
+  editing: null,
+  curveAll: false,
+};
+const LS = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* storage off */ } },
+};
+S.view = LS.get("tl.view", "calendar");
+S.scope = LS.get("tl.scope", "month");
+S.kind = LS.get("tl.kind", "all");
+// Deep links, e.g. /journal.html?view=stats&scope=30
+const Q = new URLSearchParams(location.search);
+if (["calendar", "trades", "stats"].includes(Q.get("view"))) S.view = Q.get("view");
+if (["month", "30", "ytd", "all"].includes(Q.get("scope"))) S.scope = Q.get("scope");
+
+/* A swing trade is held overnight, so its result belongs to the day it was
+   closed, not the day it was opened. A trade with no exit is still open and
+   counts nowhere until it is. */
+const kindOf = (t) => t.kind === "swing" ? "swing" : "day";
+const kindName = (t) => kindOf(t) === "swing" ? "Swing" : "Day";
+const isOpen = (t) => t.exit == null && t.pnlManual == null;
+const ledgerDate = (t) => kindOf(t) === "swing" && t.exitDate ? t.exitDate : t.date;
+const heldDays = (t) => kindOf(t) === "swing" && t.exitDate && t.exitDate !== t.date
+  ? Math.round((parseDay(t.exitDate) - parseDay(t.date)) / 86400000) : 0;
+const minsOf = (hm) => { const m = /^(\d{1,2}):(\d{2})$/.exec(hm || ""); return m ? +m[1] * 60 + +m[2] : null; };
+
+/* How long the position was on: minutes for an intraday trade, days plus the
+   leftover minutes for a swing. */
+function holdTime(t) {
+  const a = minsOf(t.timeIn), b = minsOf(t.timeOut);
+  const days = heldDays(t);
+  if (days) return days + (days === 1 ? " day" : " days");
+  if (a == null || b == null) return "";
+  const m = b - a;
+  if (m < 0) return "";
+  return m >= 60 ? Math.floor(m / 60) + "h" + (m % 60 ? " " + (m % 60) + "m" : "") : m + "m";
+}
+
+/* Which part of the session the trade was opened in — the first half hour
+   behaves nothing like lunchtime. */
+const SESSION_BUCKETS = [
+  [0, 570, "Pre-market"], [570, 600, "09:30–10:00"], [600, 660, "10:00–11:00"],
+  [660, 720, "11:00–12:00"], [720, 840, "12:00–14:00"], [840, 960, "14:00–16:00"], [960, 1440, "After hours"],
+];
+function sessionBucket(t) {
+  const m = minsOf(t.timeIn);
+  if (m == null) return "No time logged";
+  const b = SESSION_BUCKETS.find(([lo, hi]) => m >= lo && m < hi);
+  return b ? b[2] : "No time logged";
+}
+const kindMatch = (t) => S.kind === "all" || kindOf(t) === S.kind;
+
+/* P&L from the trade's own numbers; a manual figure always wins. */
+function computePnl(t) {
+  if (t.pnlManual != null) return t.pnlManual;
+  if (t.entry == null || t.exit == null || !t.qty) return 0;
+  const gross = (t.side === "short" ? t.entry - t.exit : t.exit - t.entry) * t.qty;
+  return gross - (t.fees || 0);
+}
+function rMultiple(t) {
+  if (t.stop == null || t.entry == null || !t.qty) return null;
+  const risk = Math.abs(t.entry - t.stop) * t.qty;
+  if (!risk) return null;
+  return computePnl(t) / risk;
+}
+
+function scopeStart() {
+  const t = todayET();
+  if (S.scope === "all") return "0000-01-01";
+  if (S.scope === "30") return addDays(t, -29);
+  if (S.scope === "ytd") return t.slice(0, 4) + "-01-01";
+  return S.month + "-01";
+}
+function scopeEnd() {
+  if (S.scope === "month") { const [y, m] = S.month.split("-").map(Number); return ymd(new Date(Date.UTC(y, m, 0))); }
+  return "9999-12-31";
+}
+/* Everything the summary, trades table and stats work from: inside the chosen
+   period, matching the day/swing filter, and closed. */
+const inScope = (t) => {
+  const d = ledgerDate(t);
+  return d >= scopeStart() && d <= scopeEnd() && kindMatch(t) && !isOpen(t);
+};
+const openTrades = () => S.trades.filter((t) => isOpen(t) && kindMatch(t))
+  .sort((a, b) => a.date < b.date ? 1 : -1);
+const scopeLabel = () => S.scope === "month" ? monthLabel(S.month) : S.scope === "30" ? "Last 30 days" : S.scope === "ytd" ? "Year to date" : "All time";
+const monthLabel = (m) => MONTHS[Number(m.slice(5, 7)) - 1] + " " + m.slice(0, 4);
+
+function byDay(list) {
+  const map = new Map();
+  for (const t of list) {
+    if (isOpen(t)) continue;
+    const d = ledgerDate(t);
+    const e = map.get(d) || { date: d, pnl: 0, n: 0, wins: 0, day: { pnl: 0, n: 0 }, swing: { pnl: 0, n: 0 } };
+    const p = computePnl(t);
+    e.pnl += p;
+    e.n++;
+    if (p > 0) e.wins++;
+    const k = e[kindOf(t)];
+    k.pnl += p;
+    k.n++;
+    map.set(d, e);
+  }
+  return map;
+}
+
+function stats(list) {
+  const pnls = list.map(computePnl);
+  const wins = pnls.filter((p) => p > 0);
+  const losses = pnls.filter((p) => p < 0);
+  const gw = wins.reduce((a, b) => a + b, 0);
+  const gl = Math.abs(losses.reduce((a, b) => a + b, 0));
+  const days = [...byDay(list).values()];
+  const rs = list.map(rMultiple).filter((r) => r != null);
+  return {
+    n: list.length,
+    net: pnls.reduce((a, b) => a + b, 0),
+    wins: wins.length,
+    losses: losses.length,
+    winRate: list.length ? wins.length / list.length * 100 : 0,
+    avgWin: wins.length ? gw / wins.length : 0,
+    avgLoss: losses.length ? gl / losses.length : 0,
+    grossWin: gw,
+    grossLoss: gl,
+    pf: gl ? gw / gl : (gw ? Infinity : 0),
+    expectancy: list.length ? pnls.reduce((a, b) => a + b, 0) / list.length : 0,
+    best: pnls.length ? Math.max(...pnls) : 0,
+    worst: pnls.length ? Math.min(...pnls) : 0,
+    days,
+    greenDays: days.filter((d) => d.pnl > 0).length,
+    redDays: days.filter((d) => d.pnl < 0).length,
+    bestDay: days.length ? days.reduce((a, b) => b.pnl > a.pnl ? b : a) : null,
+    worstDay: days.length ? days.reduce((a, b) => b.pnl < a.pnl ? b : a) : null,
+    avgR: rs.length ? rs.reduce((a, b) => a + b, 0) / rs.length : null,
+    rCount: rs.length,
+  };
+}
+
+/* ----------------------------------------------------------- rendering -- */
+function render() {
+  renderStatus();
+  renderSummary();
+  const host = $("#view");
+  if (!S.loaded) { host.innerHTML = '<div class="card empty"><p class="muted">Loading your trades…</p></div>'; return; }
+  if (!S.trades.length) { host.innerHTML = emptyState(); return; }
+  if (S.view === "calendar") renderCalendar(host);
+  else if (S.view === "trades") renderTrades(host);
+  else renderStats(host);
+}
+
+function renderStatus() {
+  const el = $("#status");
+  if (S.offline && S.loaded) {
+    el.innerHTML = '<div class="banner warn">Can\'t reach the scanner server, so nothing you type will be saved. Start it on your PC (share_on_tailscale.bat) and reload.</div>';
+  } else el.innerHTML = "";
+}
+
+function emptyState() {
+  return `<div class="card empty">
+    <h2>No trades logged yet</h2>
+    <p>Add your first trade and it shows up on the calendar the same second — on this device and every other one you open this page on.</p>
+    <div class="row">
+      <button class="btn btn-primary" data-act="add">Log your first trade</button>
+      <button class="btn" data-act="samples">Add 5 sample trades</button>
+    </div>
+  </div>`;
+}
+
+function renderSummary() {
+  const list = S.trades.filter(inScope);
+  const s = stats(list);
+  const open = openTrades().length;
+  const dayNet = list.filter((t) => kindOf(t) === "day").reduce((a, t) => a + computePnl(t), 0);
+  const swingNet = list.filter((t) => kindOf(t) === "swing").reduce((a, t) => a + computePnl(t), 0);
+  const swingCount = list.filter((t) => kindOf(t) === "swing").length;
+  const cells = [
+    { k: "Net P&L · " + scopeLabel(), v: money(s.net), cls: sgn(s.net), big: true, sub: s.n + (s.n === 1 ? " trade" : " trades") + (open ? " · " + open + " open" : "") },
+    ...(S.kind === "all" && swingCount ? [{
+      k: "Day / Swing",
+      v: compact(dayNet) + " / " + compact(swingNet),
+      sub: (s.n - swingCount) + " day · " + swingCount + " swing",
+    }] : []),
+    { k: "Win rate", v: s.n ? s.winRate.toFixed(0) + "%" : "—", sub: s.wins + "W · " + s.losses + "L" },
+    { k: "Profit factor", v: s.pf === Infinity ? "∞" : s.n ? s.pf.toFixed(2) : "—", cls: s.pf >= 1 ? "pos" : s.n ? "neg" : "", sub: "gross " + money(s.grossWin, false) + " / " + money(s.grossLoss, false) },
+    { k: "Avg win / loss", v: s.n ? money(s.avgWin, false) + " / " + money(s.avgLoss, false) : "—", sub: s.avgLoss ? (s.avgWin / s.avgLoss).toFixed(2) + "× ratio" : "no losses yet" },
+    { k: "Green days", v: s.days.length ? s.greenDays + " / " + s.days.length : "—", sub: s.redDays + " red" },
+    { k: "Best / worst day", v: s.days.length ? compact(s.bestDay.pnl) + " / " + compact(s.worstDay.pnl) : "—", sub: s.days.length ? s.bestDay.date.slice(5) + " · " + s.worstDay.date.slice(5) : "" },
+  ];
+  $("#summary").innerHTML = cells.map((c) => `<div class="stat"><div class="label">${esc(c.k)}</div><div class="v num ${c.cls || ""} ${c.big ? "big" : ""}">${esc(c.v)}</div><div class="sub num">${esc(c.sub || "")}</div></div>`).join("");
+}
+
+/* ------------------------------------------------------------ calendar -- */
+function renderCalendar(host) {
+  const [y, m] = S.month.split("-").map(Number);
+  const first = new Date(Date.UTC(y, m - 1, 1));
+  const days = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const lead = (first.getUTCDay() + 6) % 7;
+  const monthTrades = S.trades.filter((t) => !isOpen(t) && kindMatch(t) && ledgerDate(t).startsWith(S.month));
+  const map = byDay(monthTrades);
+  const openedOn = new Set(openTrades().map((t) => t.date));
+  const maxAbs = Math.max(1, ...[...map.values()].map((d) => Math.abs(d.pnl)));
+  const monthNet = [...map.values()].reduce((a, b) => a + b.pnl, 0);
+  const today = todayET();
+
+  let cells = "";
+  let week = [];
+  const weeks = [];
+  for (let i = 0; i < lead; i++) week.push(null);
+  for (let d = 1; d <= days; d++) {
+    week.push(`${S.month}-${String(d).padStart(2, "0")}`);
+    if (week.length === 7) { weeks.push(week); week = []; }
+  }
+  if (week.length) { while (week.length < 7) week.push(null); weeks.push(week); }
+
+  for (const w of weeks) {
+    let wkNet = 0, wkTrades = 0;
+    for (const date of w) {
+      if (!date) { cells += '<div class="cell blank"></div>'; continue; }
+      const e = map.get(date);
+      if (e) { wkNet += e.pnl; wkTrades += e.n; }
+      const cl = ["cell"];
+      if (date === today) cl.push("today");
+      if (date === S.day) cl.push("sel");
+      if (e) {
+        cl.push(e.pnl > 0 ? "win" : e.pnl < 0 ? "loss" : "flat");
+        if (Math.abs(e.pnl) >= maxAbs * 0.66) cl.push("big");
+      }
+      const parts = e ? [["D", e.day], ["S", e.swing]].filter(([, v]) => v.n) : [];
+      let body = "";
+      if (parts.length === 1) {
+        const [mark, v] = parts[0];
+        body = `<span class="p num ${sgn(v.pnl)}">${compact(v.pnl)}</span>
+          <span class="t num">${mark === "S" ? "Swing" : "Day"} · ${v.n}t · ${e.wins}W</span>`;
+      } else if (parts.length === 2) {
+        body = `<span class="p num ${sgn(e.pnl)}">${compact(e.pnl)}</span>` +
+          parts.map(([mark, v]) => `<span class="split"><em>${mark}</em><span class="${sgn(v.pnl)}">${compact(v.pnl)}</span></span>`).join("");
+      }
+      if (openedOn.has(date)) body += '<span class="open-dot">• open</span>';
+      cells += `<button class="${cl.join(" ")}" data-day="${date}" ${e ? "" : 'aria-label="No trades"'}>
+        <span class="d">${Number(date.slice(8))}</span>
+        ${body}
+      </button>`;
+    }
+    cells += `<div class="wkcell"><span class="label">Week</span><span class="p num ${sgn(wkNet)}">${wkTrades ? compact(wkNet) : "—"}</span></div>`;
+  }
+
+  host.innerHTML = `
+    <div class="cal-head">
+      <div class="nav">
+        <button data-month="-1" aria-label="Previous month">‹</button>
+        <button data-month="1" aria-label="Next month">›</button>
+      </div>
+      <h2>${esc(monthLabel(S.month))}</h2>
+      <button class="btn btn-ghost sm" data-month="today">Today</button>
+      <span class="cal-total num ${sgn(monthNet)}">${monthTrades.length ? money(monthNet) : "No trades"}</span>
+    </div>
+    <div class="grid" id="calGrid">
+      ${DOW.map((d) => `<div class="dow">${d}</div>`).join("")}<div class="dow wk">Week</div>
+      ${cells}
+    </div>
+    ${openPanel()}
+    <div id="dayPanel"></div>
+    ${curveCard()}`;
+  renderDayPanel();
+  wireCurve();
+}
+
+/* Swings you're still holding: no P&L yet, so they sit above the calendar
+   rather than in any day's total. */
+function openPanel() {
+  const list = openTrades();
+  if (!list.length) return "";
+  return `<div class="card day-panel" style="margin-top:14px">
+    <h3>Open positions <span class="muted tiny">${list.length} held · no P&amp;L until you close them</span></h3>
+    <div class="table-wrap" style="margin-top:8px"><table><thead><tr>
+      <th class="l">Opened</th><th class="l">Symbol</th><th class="l">Type</th><th class="l">Side</th>
+      <th>Shares</th><th>Entry</th><th>Stop</th><th>Risk</th><th class="l">Setup</th><th></th>
+    </tr></thead><tbody>${list.map((t) => {
+      const risk = t.stop != null && t.entry != null && t.qty ? Math.abs(t.entry - t.stop) * t.qty : null;
+      const held = Math.round((parseDay(todayET()) - parseDay(t.date)) / 86400000);
+      return `<tr data-id="${esc(t.id)}">
+        <td class="l num">${esc(t.date)}${t.timeIn ? " " + esc(t.timeIn) : ""}${held > 0 ? ` <span class="muted tiny">${held}d ago</span>` : ""}</td>
+        <td class="l sym">${esc(t.symbol)}</td>
+        <td class="l"><span class="kind ${kindOf(t)}">${kindName(t)}</span></td>
+        <td class="l"><span class="side ${t.side}">${t.side === "short" ? "Short" : "Long"}</span></td>
+        <td class="num">${t.qty ? t.qty.toLocaleString("en-US") : "—"}</td>
+        <td class="num">${t.entry != null ? t.entry : "—"}</td>
+        <td class="num">${t.stop != null ? t.stop : "—"}</td>
+        <td class="num">${risk == null ? "—" : money(risk, false)}</td>
+        <td class="l">${t.setup ? `<span class="chip">${esc(t.setup)}</span>` : ""}</td>
+        <td><button class="btn sm" data-edit="${esc(t.id)}">Close it</button></td>
+      </tr>`;
+    }).join("")}</tbody></table></div>
+  </div>`;
+}
+
+function renderDayPanel() {
+  const host = $("#dayPanel");
+  if (!host) return;
+  if (!S.day) { host.innerHTML = ""; return; }
+  const list = S.trades
+    .filter((t) => kindMatch(t) && (isOpen(t) ? t.date === S.day : ledgerDate(t) === S.day))
+    .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+  const closedList = list.filter((t) => !isOpen(t));
+  const net = closedList.reduce((a, t) => a + computePnl(t), 0);
+  const dayNet = closedList.filter((t) => kindOf(t) === "day").reduce((a, t) => a + computePnl(t), 0);
+  const swingNet = closedList.filter((t) => kindOf(t) === "swing").reduce((a, t) => a + computePnl(t), 0);
+  const mixed = closedList.some((t) => kindOf(t) === "day") && closedList.some((t) => kindOf(t) === "swing");
+  host.innerHTML = `<div class="card day-panel">
+    <h3>${esc(prettyDay(S.day))}
+      <span class="num ${sgn(net)}" style="font-weight:700">${closedList.length ? money(net) : ""}</span>
+      ${mixed ? `<span class="tiny muted num">day <span class="${sgn(dayNet)}">${money(dayNet)}</span> · swing <span class="${sgn(swingNet)}">${money(swingNet)}</span></span>` : ""}
+      <span class="muted tiny">${list.length ? list.length + " trade" + (list.length === 1 ? "" : "s") : "No trades on this day"}</span>
+      <button class="btn sm" data-act="add" data-date="${S.day}" style="margin-left:auto">+ Add</button>
+    </h3>
+    ${list.length ? `<div class="table-wrap" style="margin-top:8px">${tradeTable(list, true)}</div>` : ""}
+  </div>`;
+}
+
+/* -------------------------------------------------------------- trades -- */
+function tradeTable(list, compactCols) {
+  const head = `<tr>
+    ${compactCols ? "" : '<th class="l" data-sort="date">Date</th>'}
+    <th class="l" data-sort="symbol">Symbol</th><th class="l" data-sort="kind">Type</th><th class="l">Side</th>
+    <th class="l" data-sort="timeIn">Time</th><th>Held</th>
+    <th data-sort="qty">Shares</th><th>Entry</th><th>Exit</th>
+    <th data-sort="pnl">P&amp;L</th><th>R</th>
+    <th class="l" data-sort="setup">Setup</th><th class="l">Grade</th><th class="l">Notes</th><th></th>
+  </tr>`;
+  const rows = list.map((t) => {
+    const p = computePnl(t), r = rMultiple(t), held = heldDays(t), open = isOpen(t);
+    return `<tr data-id="${esc(t.id)}">
+      ${compactCols ? "" : `<td class="l num">${esc(ledgerDate(t))}${held ? ` <span class="muted tiny">held ${held}d</span>` : ""}</td>`}
+      <td class="l sym">${esc(t.symbol)}${t.sample ? ' <span class="chip sample tiny">sample</span>' : ""}</td>
+      <td class="l"><span class="kind ${kindOf(t)}">${kindName(t)}</span></td>
+      <td class="l"><span class="side ${t.side === "short" ? "short" : "long"}">${t.side === "short" ? "Short" : "Long"}</span></td>
+      <td class="l num">${t.timeIn ? esc(t.timeIn) + (t.timeOut ? " → " + esc(t.timeOut) : " →") : "—"}</td>
+      <td class="num">${esc(holdTime(t) || "—")}</td>
+      <td class="num">${t.qty ? t.qty.toLocaleString("en-US") : "—"}</td>
+      <td class="num">${t.entry != null ? t.entry : "—"}</td>
+      <td class="num">${t.exit != null ? t.exit : open ? '<span class="chip open tiny">open</span>' : "—"}</td>
+      <td class="num ${open ? "" : sgn(p)}" style="font-weight:600">${open ? "—" : money(p)}</td>
+      <td class="num ${r == null ? "" : sgn(r)}">${r == null ? "—" : (r > 0 ? "+" : "") + r.toFixed(2) + "R"}</td>
+      <td class="l">${t.setup ? `<span class="chip">${esc(t.setup)}</span>` : ""}</td>
+      <td class="l grade">${esc(t.grade || "")}</td>
+      <td class="l note" title="${esc(t.notes || "")}">${esc(t.notes || "")}</td>
+      <td><button class="btn btn-ghost sm" data-edit="${esc(t.id)}">Edit</button></td>
+    </tr>`;
+  }).join("");
+  return `<table><thead>${head}</thead><tbody>${rows}</tbody></table>`;
+}
+
+function renderTrades(host) {
+  const f = S.filter;
+  // The log shows open positions too, dated by when they were opened.
+  let list = S.trades.filter((t) => kindMatch(t) &&
+    (isOpen(t) ? t.date >= scopeStart() && t.date <= scopeEnd() : inScope(t)));
+  if (f.q) list = list.filter((t) => (t.symbol + " " + (t.notes || "") + " " + (t.setup || "")).toLowerCase().includes(f.q.toLowerCase()));
+  if (f.setup) list = list.filter((t) => (t.setup || "") === f.setup);
+  if (f.side) list = list.filter((t) => t.side === f.side);
+  if (f.grade) list = list.filter((t) => (t.grade || "") === f.grade);
+  const dir = S.sort.dir;
+  list = [...list].sort((a, b) => {
+    const k = S.sort.key;
+    const val = (t) => k === "pnl" ? computePnl(t) : k === "date" ? ledgerDate(t) : k === "kind" ? kindOf(t) : t[k] ?? "";
+    const va = val(a), vb = val(b);
+    if (va === vb) return (b.createdAt || 0) - (a.createdAt || 0);
+    return typeof va === "string" ? dir * va.localeCompare(vb) : dir * (va - vb);
+  });
+  const setups = [...new Set(S.trades.map((t) => t.setup).filter(Boolean))].sort();
+  const net = list.filter((t) => !isOpen(t)).reduce((a, t) => a + computePnl(t), 0);
+  const openCount = list.filter(isOpen).length;
+
+  host.innerHTML = `
+    <div class="filters">
+      <input type="search" id="q" placeholder="Search symbol or notes" value="${esc(f.q)}" aria-label="Search trades">
+      <select id="fsetup" aria-label="Filter by setup"><option value="">All setups</option>${setups.map((s) => `<option ${f.setup === s ? "selected" : ""}>${esc(s)}</option>`).join("")}</select>
+      <select id="fside" aria-label="Filter by side"><option value="">Long &amp; short</option><option value="long" ${f.side === "long" ? "selected" : ""}>Long</option><option value="short" ${f.side === "short" ? "selected" : ""}>Short</option></select>
+      <select id="fgrade" aria-label="Filter by grade"><option value="">Any grade</option>${["A", "B", "C", "D"].map((g) => `<option ${f.grade === g ? "selected" : ""}>${esc(g)}</option>`).join("")}</select>
+      <span class="tiny muted num">${list.length} trades${openCount ? " · " + openCount + " open" : ""} · <span class="${sgn(net)}">${money(net)}</span></span>
+    </div>
+    <div class="card table-wrap">${list.length ? tradeTable(list, false) : '<div class="empty"><p class="muted">No trades match these filters.</p></div>'}</div>`;
+}
+
+/* --------------------------------------------------------------- stats -- */
+function groupStats(list, key) {
+  const m = new Map();
+  for (const t of list) {
+    const k = (typeof key === "function" ? key(t) : t[key]) || "Untagged";
+    const e = m.get(k) || { k, n: 0, net: 0, wins: 0 };
+    e.n++; e.net += computePnl(t); if (computePnl(t) > 0) e.wins++;
+    m.set(k, e);
+  }
+  return [...m.values()].sort((a, b) => b.net - a.net);
+}
+
+/* Time-of-day rows stay in clock order instead of being ranked by P&L. */
+function sessionRows(list) {
+  const order = SESSION_BUCKETS.map(([, , name]) => name).concat(["No time logged"]);
+  return groupStats(list, sessionBucket).sort((a, b) => order.indexOf(a.k) - order.indexOf(b.k));
+}
+
+function barBlock(rows, title, hint) {
+  if (!rows.length) return "";
+  const max = Math.max(...rows.map((r) => Math.abs(r.net)), 1);
+  return `<div class="card panel">
+    <h3>${esc(title)} <span class="tiny muted" style="font-weight:400">${esc(hint || "")}</span></h3>
+    <div class="bars">${rows.map((r) => `
+      <div class="barrow">
+        <span style="overflow:hidden;text-overflow:ellipsis">${esc(r.k)}</span>
+        <span class="track" title="${r.n} trades, ${r.wins} winners"><span class="fill ${r.net >= 0 ? "pos" : "neg"}" style="width:${Math.max(2, Math.abs(r.net) / max * 100).toFixed(1)}%"></span></span>
+        <span class="val ${sgn(r.net)}">${compact(r.net)}<span class="tiny muted"> ·${r.n}</span></span>
+      </div>`).join("")}</div>
+  </div>`;
+}
+
+/* Day trading and swing trading are different games; this is the panel that
+   says whether both are worth playing. */
+function kindPanel(list) {
+  const rows = ["day", "swing"].map((k) => ({ k, s: stats(list.filter((t) => kindOf(t) === k)) })).filter((r) => r.s.n);
+  if (rows.length < 2) return "";
+  const cell = (r, v, cls) => `<td class="${cls || ""}">${esc(v)}</td>`;
+  return `<div class="card panel">
+    <h3>Day vs swing <span class="tiny muted" style="font-weight:400">same period</span></h3>
+    <table class="vs">
+      <thead><tr><th class="l"></th>${rows.map((r) => `<th>${r.k === "day" ? "Day" : "Swing"}</th>`).join("")}</tr></thead>
+      <tbody>
+        <tr><td class="l muted">Net P&amp;L</td>${rows.map((r) => cell(r, compact(r.s.net), "num " + sgn(r.s.net))).join("")}</tr>
+        <tr><td class="l muted">Trades</td>${rows.map((r) => cell(r, String(r.s.n), "num")).join("")}</tr>
+        <tr><td class="l muted">Win rate</td>${rows.map((r) => cell(r, r.s.winRate.toFixed(0) + "%", "num")).join("")}</tr>
+        <tr><td class="l muted">Profit factor</td>${rows.map((r) => cell(r, r.s.pf === Infinity ? "∞" : r.s.pf.toFixed(2), "num " + (r.s.pf >= 1 ? "pos" : "neg"))).join("")}</tr>
+        <tr><td class="l muted">Per trade</td>${rows.map((r) => cell(r, compact(r.s.expectancy), "num " + sgn(r.s.expectancy))).join("")}</tr>
+      </tbody>
+    </table>
+  </div>`;
+}
+
+function renderStats(host) {
+  const list = S.trades.filter(inScope);
+  const s = stats(list);
+  if (!list.length) { host.innerHTML = '<div class="card empty"><p class="muted">No trades in this period. Pick a wider period in the top bar.</p></div>'; return; }
+
+  const streak = (() => {
+    const days = [...byDay(list).values()].sort((a, b) => a.date < b.date ? -1 : 1);
+    let cur = 0, best = 0, worst = 0;
+    for (const d of days) {
+      if (d.pnl > 0) cur = cur > 0 ? cur + 1 : 1;
+      else if (d.pnl < 0) cur = cur < 0 ? cur - 1 : -1;
+      else continue;
+      best = Math.max(best, cur); worst = Math.min(worst, cur);
+    }
+    return { cur, best, worst };
+  })();
+
+  const holds = list.filter((t) => kindOf(t) === "day" && minsOf(t.timeIn) != null && minsOf(t.timeOut) != null)
+    .map((t) => minsOf(t.timeOut) - minsOf(t.timeIn)).filter((m) => m >= 0);
+  const avgHold = holds.length ? Math.round(holds.reduce((a, b) => a + b, 0) / holds.length) : null;
+
+  const kv = (k, v, cls) => `<div class="kv"><span class="muted">${esc(k)}</span><span class="${cls || ""}">${esc(v)}</span></div>`;
+  host.innerHTML = `
+    <div class="stat-grid">
+      <div class="card panel">
+        <h3>Edge</h3>
+        ${kv("Expectancy per trade", money(s.expectancy), sgn(s.expectancy))}
+        ${kv("Profit factor", s.pf === Infinity ? "∞" : s.pf.toFixed(2), s.pf >= 1 ? "pos" : "neg")}
+        ${kv("Win rate", s.winRate.toFixed(1) + "%")}
+        ${kv("Win / loss size ratio", s.avgLoss ? (s.avgWin / s.avgLoss).toFixed(2) + "×" : "—")}
+        ${kv("Average R", s.avgR == null ? "add stops to see this" : (s.avgR > 0 ? "+" : "") + s.avgR.toFixed(2) + "R", s.avgR == null ? "" : sgn(s.avgR))}
+      </div>
+      <div class="card panel">
+        <h3>Trades</h3>
+        ${kv("Logged", String(s.n))}
+        ${kv("Winners / losers", s.wins + " / " + s.losses)}
+        ${kv("Average winner", money(s.avgWin, false), "pos")}
+        ${kv("Average loser", money(s.avgLoss, false), "neg")}
+        ${kv("Biggest win / loss", money(s.best, false) + " / " + money(Math.abs(s.worst), false))}
+        ${kv("Average hold (day trades)", avgHold == null ? "add times to see this" : avgHold >= 60 ? Math.floor(avgHold / 60) + "h " + (avgHold % 60) + "m" : avgHold + " min")}
+      </div>
+      <div class="card panel">
+        <h3>Days</h3>
+        ${kv("Days traded", String(s.days.length))}
+        ${kv("Green / red days", s.greenDays + " / " + s.redDays)}
+        ${kv("Average day", money(s.days.length ? s.net / s.days.length : 0), sgn(s.net))}
+        ${kv("Best day", s.bestDay ? money(s.bestDay.pnl) + " · " + s.bestDay.date.slice(5) : "—", "pos")}
+        ${kv("Current streak", streak.cur === 0 ? "—" : Math.abs(streak.cur) + (streak.cur > 0 ? " green days" : " red days"), streak.cur > 0 ? "pos" : "neg")}
+      </div>
+    </div>
+    <div class="stat-grid" style="margin-top:14px">
+      ${kindPanel(list)}
+      ${barBlock(groupStats(list, "setup"), "By setup", "net P&L · trades")}
+      ${barBlock(sessionRows(list), "By time of day", "when you opened it")}
+      ${barBlock(groupStats(list, (t) => DOW[dowIndex(ledgerDate(t))]), "By weekday", "net P&L · trades")}
+      ${barBlock(groupStats(list, "symbol").slice(0, 8), "Top symbols", "best and worst")}
+      ${barBlock(groupStats(list, (t) => t.grade ? "Grade " + t.grade : "Ungraded"), "By execution grade", "how you rated yourself")}
+    </div>
+    ${curveCard()}`;
+  wireCurve();
+}
+
+/* --------------------------------------------------------------- curve -- */
+function curveData() {
+  const list = S.curveAll ? S.trades : S.trades.filter(inScope);
+  const days = [...byDay(list).values()].sort((a, b) => a.date < b.date ? -1 : 1);
+  let run = 0;
+  return days.map((d) => ({ date: d.date, pnl: d.pnl, n: d.n, cum: (run += d.pnl) }));
+}
+
+function curveCard() {
+  const pts = curveData();
+  return `<div class="card chart-card">
+    <div class="chart-head">
+      <h3>Cumulative P&amp;L</h3>
+      <span class="tiny muted">${esc(S.curveAll ? "All time" : scopeLabel())} · ${pts.length} trading day${pts.length === 1 ? "" : "s"}</span>
+      <button class="btn btn-ghost sm" data-act="curve-scope" style="margin-left:auto">${S.curveAll ? "Show period" : "Show all time"}</button>
+    </div>
+    <figure style="position:relative">${curveSvg(pts)}<div id="curveTip" class="tip" hidden></div></figure>
+  </div>`;
+}
+
+function curveSvg(pts) {
+  const W = 960, H = 230, L = 52, R = 14, T = 14, B = 26;
+  if (pts.length === 0) return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="No trades to chart"><text x="${W / 2}" y="${H / 2}" class="axis" text-anchor="middle">No trades in this period yet</text></svg>`;
+  const vals = pts.map((p) => p.cum).concat([0]);
+  let min = Math.min(...vals), max = Math.max(...vals);
+  if (min === max) { min -= 10; max += 10; }
+  const pad = (max - min) * 0.12;
+  // Keep the axis anchored at zero rather than padding into territory the
+  // curve never reaches.
+  if (min < 0) min -= pad;
+  if (max > 0) max += pad;
+  const x = (i) => L + (pts.length === 1 ? (W - L - R) / 2 : i * (W - L - R) / (pts.length - 1));
+  const y = (v) => T + (max - v) / (max - min) * (H - T - B);
+
+  const ticks = 4;
+  let grid = "";
+  for (let i = 0; i <= ticks; i++) {
+    const v = min + (max - min) * i / ticks, yy = y(v);
+    grid += `<line class="gridline" x1="${L}" x2="${W - R}" y1="${yy.toFixed(1)}" y2="${yy.toFixed(1)}"></line>
+      <text class="axis" x="${L - 8}" y="${(yy + 3.5).toFixed(1)}" text-anchor="end">${compact(v).replace("+", "")}</text>`;
+  }
+  if (min < 0 && max > 0) grid += `<line class="zeroline" x1="${L}" x2="${W - R}" y1="${y(0).toFixed(1)}" y2="${y(0).toFixed(1)}"></line>`;
+
+  const line = pts.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(p.cum).toFixed(1)}`).join(" ");
+  const base = Math.min(Math.max(y(0), T), H - B);
+  const area = `${line} L${x(pts.length - 1).toFixed(1)},${base.toFixed(1)} L${x(0).toFixed(1)},${base.toFixed(1)} Z`;
+  const last = pts[pts.length - 1];
+  const stroke = last.cum >= 0 ? "var(--up)" : "var(--down)";
+
+  const labelEvery = Math.max(1, Math.ceil(pts.length / 7));
+  let xlabels = "";
+  pts.forEach((p, i) => {
+    if (i % labelEvery === 0 || i === pts.length - 1) {
+      xlabels += `<text class="axis" x="${x(i).toFixed(1)}" y="${H - 8}" text-anchor="middle">${p.date.slice(5).replace("-", "/")}</text>`;
+    }
+  });
+
+  const dots = pts.map((p, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(p.cum).toFixed(1)}" r="${pts.length > 60 ? 0 : 3}" fill="${stroke}" stroke="var(--surface)" stroke-width="2"></circle>`).join("");
+
+  return `<svg viewBox="0 0 ${W} ${H}" id="curveSvg" role="img" aria-label="Cumulative profit and loss, ending at ${money(last.cum)}"
+      data-x='${JSON.stringify(pts.map((_, i) => +x(i).toFixed(1)))}' data-l="${L}" data-r="${R}" data-w="${W}">
+    ${grid}${xlabels}
+    <path d="${area}" fill="${stroke}" fill-opacity="0.12"></path>
+    <path d="${line}" fill="none" stroke="${stroke}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></path>
+    ${dots}
+    <circle cx="${x(pts.length - 1).toFixed(1)}" cy="${y(last.cum).toFixed(1)}" r="4.5" fill="${stroke}" stroke="var(--surface)" stroke-width="2"></circle>
+    <line id="crosshair" class="zeroline" y1="${T}" y2="${H - B}" x1="0" x2="0" style="display:none"></line>
+  </svg>`;
+}
+
+function wireCurve() {
+  const svg = $("#curveSvg"), tip = $("#curveTip");
+  if (!svg || !tip) return;
+  const pts = curveData();
+  const xs = JSON.parse(svg.dataset.x || "[]");
+  const cross = $("#crosshair");
+  const move = (ev) => {
+    const r = svg.getBoundingClientRect();
+    const cx = ev.touches ? ev.touches[0].clientX : ev.clientX;
+    const vx = (cx - r.left) / r.width * Number(svg.dataset.w);
+    let best = 0;
+    xs.forEach((v, i) => { if (Math.abs(v - vx) < Math.abs(xs[best] - vx)) best = i; });
+    const p = pts[best];
+    if (!p) return;
+    cross.setAttribute("x1", xs[best]); cross.setAttribute("x2", xs[best]); cross.style.display = "";
+    tip.hidden = false;
+    tip.innerHTML = `<div class="t-d">${esc(prettyDay(p.date))}</div>
+      <div class="tip-row"><span>Day</span><span class="${sgn(p.pnl)}">${money(p.pnl)}</span></div>
+      <div class="tip-row"><span>Running</span><span class="${sgn(p.cum)}">${money(p.cum)}</span></div>
+      <div class="tip-row"><span>Trades</span><span>${p.n}</span></div>`;
+    const left = Math.min(Math.max(xs[best] / Number(svg.dataset.w) * r.width - 70, 0), r.width - 150);
+    tip.style.left = left + "px";
+    tip.style.top = "4px";
+  };
+  svg.addEventListener("mousemove", move);
+  svg.addEventListener("touchstart", move, { passive: true });
+  svg.addEventListener("touchmove", move, { passive: true });
+  const hide = () => { tip.hidden = true; if (cross) cross.style.display = "none"; };
+  svg.addEventListener("mouseleave", hide);
+  svg.addEventListener("touchend", hide);
+}
+
+/* ---------------------------------------------------------------- form -- */
+const dlg = $("#tradeDlg");
+
+function openForm(trade, date) {
+  S.editing = trade || null;
+  const f = $("#tradeForm");
+  f.reset();
+  $("#tradeDlgTitle").textContent = trade ? "Edit trade" : "Log a trade";
+  $("#deleteBtn").hidden = !trade;
+  $("#manualPnl").checked = !!(trade && trade.pnlManual != null);
+  const t = trade || {};
+  setFormKind(trade ? kindOf(trade) : S.kind === "swing" ? "swing" : "day");
+  $("#f-exit-date").value = t.exitDate || "";
+  $("#f-time-in").value = t.timeIn || "";
+  $("#f-time-out").value = t.timeOut || "";
+  $("#f-date").value = t.date || date || todayET();
+  $("#f-symbol").value = t.symbol || "";
+  $("#f-side").value = t.side || "long";
+  $("#f-qty").value = t.qty ?? "";
+  $("#f-entry").value = t.entry ?? "";
+  $("#f-exit").value = t.exit ?? "";
+  $("#f-stop").value = t.stop ?? "";
+  $("#f-fees").value = t.fees ?? "";
+  $("#f-setup").value = t.setup || "";
+  $("#f-grade").value = t.grade || "";
+  $("#f-notes").value = t.notes || "";
+  $("#f-pnl").value = t.pnlManual ?? "";
+  $("#setups").innerHTML = [...new Set(S.trades.map((x) => x.setup).filter(Boolean))]
+    .concat(["Opening range", "Gap and go", "Bull flag", "First pullback", "VWAP hold", "Dip buy", "Reversal"])
+    .filter((v, i, a) => a.indexOf(v) === i)
+    .map((s) => `<option value="${esc(s)}">`).join("");
+  syncCalc();
+  dlg.showModal();
+  setTimeout(() => $("#f-symbol").focus(), 30);
+}
+
+function setFormKind(k) {
+  S.formKind = k === "swing" ? "swing" : "day";
+  document.querySelectorAll("#kindSeg button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.kind === S.formKind)));
+  $("#exitDateField").hidden = S.formKind !== "swing";
+  $("#dateLabel").textContent = S.formKind === "swing" ? "Date opened" : "Date";
+  $("#f-exit").previousElementSibling.textContent = S.formKind === "swing" ? "Exit (blank = still open)" : "Exit";
+}
+
+function formTrade() {
+  const t = {
+    kind: S.formKind,
+    date: $("#f-date").value || todayET(),
+    exitDate: S.formKind === "swing" ? ($("#f-exit-date").value || null) : null,
+    timeIn: $("#f-time-in").value || null,
+    timeOut: $("#f-time-out").value || null,
+    symbol: ($("#f-symbol").value || "").trim().toUpperCase(),
+    side: $("#f-side").value === "short" ? "short" : "long",
+    qty: num($("#f-qty").value),
+    entry: num($("#f-entry").value),
+    exit: num($("#f-exit").value),
+    stop: num($("#f-stop").value),
+    fees: num($("#f-fees").value) || 0,
+    setup: ($("#f-setup").value || "").trim(),
+    grade: $("#f-grade").value,
+    notes: ($("#f-notes").value || "").trim(),
+    pnlManual: $("#manualPnl").checked ? num($("#f-pnl").value) : null,
+  };
+  return t;
+}
+
+function syncCalc() {
+  const manual = $("#manualPnl").checked;
+  $("#f-pnl").hidden = !manual;
+  const t = formTrade();
+  const p = computePnl(t);
+  const el = $("#calcPnl");
+  const open = isOpen(t);
+  el.textContent = open ? "Open" : money(p);
+  el.className = "v num " + (open ? "muted" : sgn(p));
+  if (open) {
+    $("#calcMeta").textContent = t.qty && t.entry != null
+      ? `Still open — ${t.qty.toLocaleString("en-US")} shares at $${t.entry}. Add the exit price when you close it.`
+      : "Still open — add the exit price when you close it.";
+    return;
+  }
+  const r = rMultiple(t);
+  const parts = [];
+  if (t.qty && t.entry != null && t.exit != null && !manual) {
+    const move = (t.side === "short" ? t.entry - t.exit : t.exit - t.entry);
+    parts.push(`${t.qty.toLocaleString("en-US")} × ${move >= 0 ? "+" : "-"}$${Math.abs(move).toFixed(4).replace(/0+$/, "").replace(/\.$/, "")}`);
+    if (t.fees) parts.push(`less ${money(t.fees, false)} fees`);
+  }
+  if (r != null) parts.push(`${(r > 0 ? "+" : "") + r.toFixed(2)}R`);
+  $("#calcMeta").textContent = parts.join(" · ");
+}
+
+/* --------------------------------------------------------------- store -- */
+const newId = () => "t" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+/* The journal lives in scanner/journal.json on this PC, served by the same
+   local server as the scanner, so both reach you at one address. */
+async function saveTrade(data, id) {
+  const prev = id ? S.trades.find((t) => t.id === id) : null;
+  const body = {
+    ...data,
+    id: id || newId(),
+    sample: !!(data.sample || (prev && prev.sample)),
+    createdAt: (prev && prev.createdAt) || Date.now(),
+    updatedAt: Date.now(),
+  };
+  try {
+    const res = await fetch("/api/trades", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const j = await res.json();
+    S.trades = tradesFrom(j.trades);
+    S.loaded = true;
+    render();
+    return true;
+  } catch (e) {
+    S.offline = true;
+    renderStatus();
+    toast("Couldn't save — is the scanner still running?");
+    return false;
+  }
+}
+
+async function deleteTrade(id) {
+  try {
+    const res = await fetch("/api/trades?id=" + encodeURIComponent(id), { method: "DELETE" });
+    if (!res.ok) throw new Error("delete failed");
+    const j = await res.json();
+    S.trades = tradesFrom(j.trades);
+    render();
+  } catch {
+    S.offline = true;
+    renderStatus();
+    toast("Couldn't delete — is the scanner still running?");
+  }
+}
+
+async function loadTrades() {
+  try {
+    const res = await fetch("/api/trades", { cache: "no-store" });
+    if (!res.ok) throw new Error("load failed");
+    const j = await res.json();
+    S.trades = tradesFrom(j.trades);
+    S.offline = false;
+  } catch {
+    S.offline = true;
+  }
+  S.loaded = true;
+  render();
+}
+
+function tradesFrom(list) {
+  const out = [];
+  (list || []).forEach((v) => {
+    if (!v || !v.date || !v.id) return;
+    out.push({
+      id: String(v.id), date: String(v.date).slice(0, 10), symbol: String(v.symbol || "").toUpperCase(),
+      kind: v.kind === "swing" ? "swing" : "day",
+      exitDate: /^\d{4}-\d{2}-\d{2}$/.test(String(v.exitDate || "")) ? String(v.exitDate) : null,
+      timeIn: /^\d{2}:\d{2}$/.test(String(v.timeIn || "")) ? String(v.timeIn) : null,
+      timeOut: /^\d{2}:\d{2}$/.test(String(v.timeOut || "")) ? String(v.timeOut) : null,
+      side: v.side === "short" ? "short" : "long",
+      qty: typeof v.qty === "number" ? v.qty : null,
+      entry: typeof v.entry === "number" ? v.entry : null,
+      exit: typeof v.exit === "number" ? v.exit : null,
+      stop: typeof v.stop === "number" ? v.stop : null,
+      fees: typeof v.fees === "number" ? v.fees : 0,
+      pnlManual: typeof v.pnlManual === "number" ? v.pnlManual : null,
+      setup: v.setup ? String(v.setup).slice(0, 60) : "",
+      grade: ["A", "B", "C", "D"].includes(v.grade) ? v.grade : "",
+      notes: v.notes ? String(v.notes).slice(0, 2000) : "",
+      sample: !!v.sample,
+      createdAt: typeof v.createdAt === "number" ? v.createdAt : 0,
+    });
+  });
+  out.sort((a, b) => {
+    const da = ledgerDate(a), db2 = ledgerDate(b);
+    return da < db2 ? 1 : da > db2 ? -1 : (b.createdAt || 0) - (a.createdAt || 0);
+  });
+  return out;
+}
+
+/* ------------------------------------------------------------- samples -- */
+function sampleTrades() {
+  const t = todayET();
+  const d = (n) => addDays(t, -n);
+  return [
+    { date: d(9), timeIn: "09:41", timeOut: "10:06", symbol: "AMPX", side: "long", qty: 1200, entry: 3.42, exit: 3.88, stop: 3.25, fees: 2.4, setup: "Gap and go", grade: "A", notes: "Example row. Gapped on an earnings beat, 8x relative volume. Took the first pullback and held into the half dollar." },
+    { date: d(8), timeIn: "10:52", timeOut: "11:04", symbol: "RETO", side: "long", qty: 800, entry: 2.15, exit: 1.97, stop: 1.98, fees: 1.8, setup: "First pullback", grade: "C", notes: "Example row. Chased the second push instead of waiting. Stop was hit almost exactly." },
+    { date: d(4), timeIn: "09:47", timeOut: "10:33", symbol: "QNME", side: "short", qty: 2000, entry: 1.12, exit: 0.96, stop: 1.2, fees: 3.1, setup: "Reversal", grade: "B", notes: "Example row. Faded the third push into a daily resistance level." },
+    { date: d(2), timeIn: "09:46", timeOut: "10:12", symbol: "SNDK", side: "long", qty: 150, entry: 18.6, exit: 19.4, stop: 18.2, fees: 1.2, setup: "Opening range", grade: "B", notes: "Example row. Clean break of the 15 minute range, trailed under VWAP." },
+    { date: d(1), timeIn: "13:18", timeOut: "13:35", symbol: "TNMG", side: "long", qty: 900, entry: 3.7, exit: 3.52, stop: 3.55, fees: 2, setup: "Opening range", grade: "D", notes: "Example row. Lunchtime chop, range too wide for the stop I wanted. Should have passed on this one." },
+    { date: d(16), exitDate: d(2), kind: "swing", timeIn: "15:42", timeOut: "09:58", symbol: "MSTR", side: "long", qty: 40, entry: 131.2, exit: 147.9, stop: 124, fees: 2, setup: "Breakout retest", grade: "A", notes: "Example swing. Held two weeks; the P&L lands on the day it was closed, not the day it was opened." },
+    { date: d(6), kind: "swing", timeIn: "14:10", symbol: "GLD", side: "long", qty: 60, entry: 254.1, stop: 246, fees: 1, setup: "Trend pullback", grade: "", notes: "Example of a position still open — no exit price yet, so it sits above the calendar and counts in no day's total." },
+  ].map((x) => ({ ...x, sample: true, createdAt: Date.now() }));
+}
+
+async function addSamples() {
+  for (const t of sampleTrades()) await saveTrade(t);
+  toast("5 sample trades added");
+}
+async function clearSamples() {
+  const ids = S.trades.filter((t) => t.sample).map((t) => t.id);
+  for (const id of ids) await deleteTrade(id);
+  toast(ids.length ? ids.length + " sample trades removed" : "No samples to remove");
+}
+
+/* -------------------------------------------------------- csv in / out -- */
+const CSV_COLS = ["date", "kind", "exitdate", "timein", "timeout", "symbol", "side", "qty", "entry", "exit", "stop", "fees", "pnl", "r", "setup", "grade", "notes"];
+
+function toCSV() {
+  const q = (v) => { const s = v == null ? "" : String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  const rows = [...S.trades].sort((a, b) => a.date < b.date ? -1 : 1).map((t) => {
+    const r = rMultiple(t);
+    return [t.date, kindOf(t), t.exitDate || "", t.timeIn || "", t.timeOut || "", t.symbol, t.side, t.qty, t.entry, t.exit, t.stop, t.fees,
+      isOpen(t) ? "open" : computePnl(t).toFixed(2), r == null || isOpen(t) ? "" : r.toFixed(2), t.setup, t.grade, t.notes].map(q).join(",");
+  });
+  return CSV_COLS.join(",") + "\n" + rows.join("\n");
+}
+
+function parseCSV(text) {
+  const rows = [];
+  let row = [], cell = "", inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQ) {
+      if (c === '"' && text[i + 1] === '"') { cell += '"'; i++; }
+      else if (c === '"') inQ = false;
+      else cell += c;
+    } else if (c === '"') inQ = true;
+    else if (c === ",") { row.push(cell); cell = ""; }
+    else if (c === "\n") { row.push(cell); rows.push(row); row = []; cell = ""; }
+    else if (c !== "\r") cell += c;
+  }
+  if (cell || row.length) { row.push(cell); rows.push(row); }
+  return rows.filter((r) => r.some((v) => v.trim() !== ""));
+}
+
+async function importCSV(text) {
+  const rows = parseCSV(text.trim());
+  if (rows.length < 2) return { ok: 0, bad: 0, msg: "Nothing to import." };
+  const head = rows[0].map((h) => h.trim().toLowerCase());
+  let ok = 0, bad = 0;
+  for (const r of rows.slice(1)) {
+    const g = (k) => { const i = head.indexOf(k); return i < 0 ? "" : (r[i] || "").trim(); };
+    const date = g("date");
+    const symbol = g("symbol").toUpperCase();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !symbol) { bad++; continue; }
+    const pnlRaw = num(g("pnl").replace(/[$,]/g, ""));
+    const entry = num(g("entry")), exit = num(g("exit")), qty = num(g("qty"));
+    const exitDate = g("exitdate");
+    const t = {
+      date, symbol,
+      kind: g("kind").toLowerCase().startsWith("s") ? "swing" : "day",
+      exitDate: /^\d{4}-\d{2}-\d{2}$/.test(exitDate) ? exitDate : null,
+      timeIn: /^\d{1,2}:\d{2}$/.test(g("timein")) ? g("timein").padStart(5, "0") : null,
+      timeOut: /^\d{1,2}:\d{2}$/.test(g("timeout")) ? g("timeout").padStart(5, "0") : null,
+      side: g("side").toLowerCase().startsWith("s") ? "short" : "long",
+      qty, entry, exit, stop: num(g("stop")), fees: num(g("fees")) || 0,
+      setup: g("setup").slice(0, 60), grade: ["A", "B", "C", "D"].includes(g("grade").toUpperCase()) ? g("grade").toUpperCase() : "",
+      notes: g("notes").slice(0, 2000),
+      pnlManual: (entry == null || exit == null || !qty) && pnlRaw != null ? pnlRaw : null,
+    };
+    if (await saveTrade(t)) ok++; else bad++;
+  }
+  return { ok, bad, msg: `Imported ${ok} trade${ok === 1 ? "" : "s"}${bad ? `, skipped ${bad}` : ""}.` };
+}
+
+/* -------------------------------------------------------------- wiring -- */
+document.addEventListener("click", async (e) => {
+  const el = e.target.closest("[data-view],[data-month],[data-day],[data-edit],[data-act],[data-close],[data-sort]");
+  if (!el) return;
+
+  if (el.dataset.view) {
+    S.view = el.dataset.view; LS.set("tl.view", S.view);
+    document.querySelectorAll("[data-view]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.view === S.view)));
+    render(); return;
+  }
+  if (el.dataset.month) {
+    if (el.dataset.month === "today") { S.month = todayET().slice(0, 7); S.day = todayET(); }
+    else {
+      const [y, m] = S.month.split("-").map(Number);
+      const d = new Date(Date.UTC(y, m - 1 + Number(el.dataset.month), 1));
+      S.month = ymd(d).slice(0, 7);
+      S.day = null;
+    }
+    render(); return;
+  }
+  if (el.dataset.day) {
+    S.day = S.day === el.dataset.day ? null : el.dataset.day;
+    document.querySelectorAll("[data-day]").forEach((c) => c.classList.toggle("sel", c.dataset.day === S.day));
+    renderDayPanel(); return;
+  }
+  if (el.dataset.edit) { const t = S.trades.find((x) => x.id === el.dataset.edit); if (t) openForm(t); return; }
+  if (el.dataset.sort) {
+    const k = el.dataset.sort;
+    S.sort = S.sort.key === k ? { key: k, dir: -S.sort.dir } : { key: k, dir: k === "symbol" || k === "setup" ? 1 : -1 };
+    render(); return;
+  }
+  if (el.dataset.close !== undefined) { el.closest("dialog").close(); return; }
+
+  switch (el.dataset.act) {
+    case "add": openForm(null, el.dataset.date); break;
+    case "samples": await addSamples(); break;
+    case "curve-scope": S.curveAll = !S.curveAll; render(); break;
+  }
+});
+
+$("#addBtn").addEventListener("click", () => openForm(null, S.day));
+$("#moreBtn").addEventListener("click", () => $("#moreDlg").showModal());
+$("#scope").addEventListener("change", (e) => { S.scope = e.target.value; LS.set("tl.scope", S.scope); render(); });
+$("#scope").value = S.scope;
+$("#kindFilter").addEventListener("change", (e) => { S.kind = e.target.value; LS.set("tl.kind", S.kind); render(); });
+$("#kindFilter").value = S.kind;
+$("#kindSeg").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-kind]");
+  if (!b) return;
+  setFormKind(b.dataset.kind);
+  syncCalc();
+});
+
+$("#tradeForm").addEventListener("input", syncCalc);
+$("#manualPnl").addEventListener("change", syncCalc);
+
+$("#tradeForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const data = formTrade();
+  if (!data.symbol) { $("#f-symbol").focus(); return; }
+  const btn = $("#saveBtn");
+  btn.disabled = true; btn.textContent = "Saving…";
+  const ok = await saveTrade(data, S.editing ? S.editing.id : null);
+  btn.disabled = false; btn.textContent = "Save trade";
+  if (ok) {
+    const landed = ledgerDate(data);
+    S.day = landed;
+    if (landed.slice(0, 7) !== S.month) S.month = landed.slice(0, 7);
+    if (S.kind !== "all" && S.kind !== kindOf(data)) { S.kind = "all"; $("#kindFilter").value = "all"; LS.set("tl.kind", "all"); }
+    dlg.close();
+    toast(S.editing ? "Trade updated" : "Trade logged");
+  }
+});
+
+// Two-step delete: the dialogs the viewer frame blocks (confirm()) are replaced
+// by the button asking for a second click.
+let armed = false;
+$("#deleteBtn").addEventListener("click", async (e) => {
+  const b = e.currentTarget;
+  if (!armed) { armed = true; b.textContent = "Tap again to delete"; setTimeout(() => { armed = false; b.textContent = "Delete"; }, 4000); return; }
+  armed = false; b.textContent = "Delete";
+  if (S.editing) await deleteTrade(S.editing.id);
+  dlg.close();
+  toast("Trade deleted");
+});
+dlg.addEventListener("close", () => { armed = false; $("#deleteBtn").textContent = "Delete"; });
+
+document.addEventListener("input", (e) => {
+  if (e.target.id === "q") { S.filter.q = e.target.value; renderTradesKeepFocus(); }
+});
+document.addEventListener("change", (e) => {
+  if (e.target.id === "fsetup") { S.filter.setup = e.target.value; render(); }
+  if (e.target.id === "fside") { S.filter.side = e.target.value; render(); }
+  if (e.target.id === "fgrade") { S.filter.grade = e.target.value; render(); }
+});
+function renderTradesKeepFocus() {
+  const pos = $("#q") ? $("#q").selectionStart : null;
+  render();
+  const q = $("#q");
+  if (q) { q.focus(); if (pos != null) q.setSelectionRange(pos, pos); }
+}
+
+$("#exportBtn").addEventListener("click", () => {
+  const url = URL.createObjectURL(new Blob([toCSV()], { type: "text/csv" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `trade-ledger-${todayET()}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  toast("Exported");
+});
+
+$("#themeBtn").addEventListener("click", () => {
+  const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  document.documentElement.dataset.theme = next;
+  LS.set("tl.theme", next);
+});
+$("#importBtn").addEventListener("click", async () => {
+  const btn = $("#importBtn");
+  btn.disabled = true;
+  $("#importMsg").textContent = "Importing…";
+  const res = await importCSV($("#importText").value);
+  $("#importMsg").textContent = res.msg;
+  if (res.ok) $("#importText").value = "";
+  btn.disabled = false;
+});
+$("#sampleBtn").addEventListener("click", addSamples);
+$("#clearSampleBtn").addEventListener("click", clearSamples);
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "n" && !/input|textarea|select/i.test(e.target.tagName) && !dlg.open) { e.preventDefault(); openForm(null, S.day); }
+});
+
+/* ---------------------------------------------------------------- boot -- */
+document.querySelectorAll("[data-view]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.view === S.view)));
+render();
+
+loadTrades();
+// Pick up trades logged from another device (phone on the tailnet, say).
+setInterval(() => { if (!document.hidden && !dlg.open) loadTrades(); }, 20000);
+window.addEventListener("focus", () => { if (!dlg.open) loadTrades(); });
+
+// The scanner's "Log this trade" button sends the symbol and price across.
+window.addEventListener("message", (e) => {
+  if (e.source !== window.parent || !e.data || e.data.type !== "prefill-trade") return;
+  const d = e.data;
+  openForm(null, d.date);
+  if (d.symbol) $("#f-symbol").value = String(d.symbol).toUpperCase().slice(0, 10);
+  if (d.price != null) $("#f-entry").value = d.price;
+  if (d.time) $("#f-time-in").value = d.time;
+  syncCalc();
+});
+</script>
+
+</body>
+</html>

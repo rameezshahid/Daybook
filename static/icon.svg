@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" role="img" aria-label="Daybook">
+  <!-- Small-size version of the app icon: the same ledger-with-candles idea,
+       drawn with chunky bars and no wicks so it survives at 16px. -->
+  <rect x="2.6" y="3" width="3.2" height="18" rx="1.2" fill="#3fa7ff"/>
+  <rect x="6.6" y="3" width="14.8" height="18" rx="1.8" fill="none" stroke="#3fa7ff" stroke-width="1.7"/>
+  <rect x="9.3" y="12.4" width="3" height="5.2" rx="1" fill="#d8e0ea"/>
+  <rect x="13.1" y="9.6" width="3" height="8" rx="1" fill="#19c37d"/>
+  <rect x="16.9" y="6.4" width="3" height="11.2" rx="1" fill="#19c37d"/>
+</svg>

@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Daybook</title>
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#0b0f14">
+<meta name="apple-mobile-web-app-title" content="Daybook">
+<link rel="stylesheet" href="style.css">
+<script src="https://s3.tradingview.com/tv.js"></script>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand"><img class="logo" src="/icon.svg" alt="" width="26" height="26"> Daybook</div>
+  <nav class="apptabs" role="tablist">
+    <button class="apptab on" data-app="scanner" role="tab"><img src="/icon.svg" alt="" width="15" height="15">Scanner</button>
+    <button class="apptab" data-app="journal" role="tab"><img src="/icon-journal.svg" alt="" width="15" height="15">Journal</button>
+  </nav>
+  <nav class="tabs" role="tablist">
+    <button class="tab active" data-u="small" role="tab">Small Caps <span class="badge" data-badge="small"></span></button>
+    <button class="tab" data-u="large" role="tab">Large Caps <span class="badge" data-badge="large"></span></button>
+  </nav>
+  <div class="status">
+    <span id="mkt" class="pill">—</span>
+    <span id="updated" class="muted">connecting…</span>
+    <span id="clock" class="clock">--:--:-- ET</span>
+    <button id="soundBtn" class="icon-btn" title="Alert sound on/off">🔊</button>
+    <button id="settingsBtn" class="icon-btn" title="Pillar rules and alert settings">⚙ Rules</button>
+  </div>
+</header>
+
+<div id="banner" class="banner" hidden></div>
+
+<main class="grid">
+  <section class="panel p-gainers">
+    <div class="panel-h">
+      <h2>Top Gainers <span class="muted" id="gainersCount"></span></h2>
+      <label class="muted small"><input type="checkbox" id="onlyScore3"> 3+ pillars only</label>
+    </div>
+    <div class="table-wrap"><table id="gainers" class="scan"></table></div>
+  </section>
+
+  <section class="panel p-pillars">
+    <div class="panel-h">
+      <h2>5 Pillars Scan <span class="muted" id="pillarsCount"></span></h2>
+      <span class="muted small" id="rulesSummary"></span>
+    </div>
+    <div class="table-wrap"><table id="pillars" class="scan"></table></div>
+  </section>
+
+  <section class="panel p-alerts">
+    <div class="panel-h">
+      <h2>Momentum Alerts</h2>
+      <button class="link-btn" id="clearAlerts">clear</button>
+    </div>
+    <div class="table-wrap"><table id="alerts" class="scan"></table></div>
+  </section>
+
+  <section class="panel p-quote">
+    <div class="panel-h">
+      <h2>Stock Quote</h2>
+      <form id="lookup" autocomplete="off"><input id="lookupInput" placeholder="Symbol" maxlength="10" spellcheck="false"></form>
+    </div>
+    <div id="quote" class="quote"><p class="muted pad">Click any symbol in a scanner to load its quote, news and charts.</p></div>
+  </section>
+
+  <section class="panel p-feed">
+    <div class="panel-h">
+      <h2>Catalyst News Feed</h2>
+      <label class="muted small"><input type="checkbox" id="hideRoundups" checked> hide roundups</label>
+    </div>
+    <div id="feed" class="feed"></div>
+  </section>
+
+  <section class="panel p-chart1">
+    <div class="panel-h"><h2>Chart · <span id="chartSym1">—</span></h2>
+      <div class="seg" id="intervalSeg">
+        <button data-i="1">1m</button><button data-i="5" class="on">5m</button><button data-i="15">15m</button>
+      </div>
+    </div>
+    <div id="tv1" class="chart"></div>
+  </section>
+
+  <section class="panel p-chart2">
+    <div class="panel-h"><h2>Daily · <span id="chartSym2">—</span></h2></div>
+    <div id="tv2" class="chart"></div>
+  </section>
+</main>
+
+<div id="journalView" hidden>
+  <iframe id="journalFrame" title="Trade journal" loading="lazy"></iframe>
+</div>
+
+<dialog id="settings">
+  <form method="dialog" id="settingsForm">
+    <h2>Rules — <span id="settingsTab"></span></h2>
+    <p class="muted small">A pillar that's switched off always counts as passed. Changes apply immediately and are saved in this browser.</p>
+    <table class="rules">
+      <tr><td><input type="checkbox" name="p1on"></td><td><b class="dem">Demand</b> Up on the day at least</td><td><input type="number" name="minChange" step="0.5"> %</td></tr>
+      <tr><td><input type="checkbox" name="p2on"></td><td><b class="dem">Demand</b> Relative volume at least</td><td><input type="number" name="minRvol" step="0.5"> ×</td></tr>
+      <tr><td><input type="checkbox" name="p3on"></td><td><b class="dem">Demand</b> News in the last 24h</td><td class="muted small">roundup lists don't count</td></tr>
+      <tr><td><input type="checkbox" name="p4on"></td><td><b class="dem">Demand</b> Price between</td><td>$<input type="number" name="priceMin" step="0.5"> – $<input type="number" name="priceMax" step="1"></td></tr>
+      <tr><td><input type="checkbox" name="p5on"></td><td><b class="sup">Supply</b> Float under</td><td><input type="number" name="maxFloat" step="1"> M shares</td></tr>
+    </table>
+    <h3>Alerts</h3>
+    <table class="rules">
+      <tr><td></td><td>Only alert on stocks with at least</td><td><input type="number" name="alertMinScore" min="0" max="5" step="1"> pillars</td></tr>
+      <tr><td></td><td>"Running up": gain in the window of</td><td><input type="number" name="runPct" step="0.5"> % in <input type="number" name="runMins" step="1"> min</td></tr>
+    </table>
+    <div class="dlg-actions">
+      <button type="button" id="resetRules" class="link-btn">reset to defaults</button>
+      <button value="close" class="primary">Done</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="app.js"></script>
+</body>
+</html>
